@@ -1,15 +1,39 @@
 name: CI/CD Pipeline
 
 on:
-  workflow_dispatch:
   push:
-    branches: '*'
+    branches: [ main ]
   pull_request:
-    branches:
+    branches: [ main ]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U testuser -d testdb"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 10
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -20,21 +44,29 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Build with Maven
-        run: mvn clean package
+      - name: Verify services
+        run: |
+          docker ps
+          echo "Waiting for PostgreSQL..."
+          timeout 30s bash -c 'until docker exec health_postgres pg_isready -U testuser -d testdb; do sleep 2; done'
+          echo "PostgreSQL ready!"
+          echo "Waiting for Redis..."
+          timeout 10s bash -c 'until docker exec health_redis redis-cli ping | grep PONG; do sleep 1; done'
+          echo "Redis ready!"
 
-  test:
-    needs: build
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-      - run: mvn test
+      - name: Run tests
+        run: mvn test
+        env:
+          SPRING_PROFILES_ACTIVE: ci
+          SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/testdb
+          SPRING_DATASOURCE_USERNAME: testuser
+          SPRING_DATASOURCE_PASSWORD: testpass
+          SPRING_REDIS_HOST: redis
+          SPRING_REDIS_PORT: 6379
+          SPRING_LIQUIBASE_ENABLED: true
+          SPRING_JPA_HIBERNATE_DDL_AUTO: none
 
-  sonarqube:
+  build:
     needs: test
     runs-on: ubuntu-24.04
     steps:
@@ -43,28 +75,21 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+      - run: mvn clean package -DskipTests
 
-      - name: Compile project
-        run: mvn clean compile
-
-      - name: Verify target directory
-        run: ls -la target/classes/
-
-      - name: SonarQube Scan
-        run: |
-          mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.organization=innowise-internship \
-            -Dsonar.projectKey=Pavel11sg_user-service \
-            -Dsonar.projectName=innowise-internship \
-            -Dsonar.java.source=21 \
-            -Dsonar.sourceEncoding=UTF-8 \
-            -Dsonar.java.binaries=target/classes \
-            -Dsonar.sources=src/main/java \
-            -Dsonar.tests=src/test/java \
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-            -Dsonar.junit.reportPaths=target/surefire-reports \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+  sonarqube:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - run: mvn sonar:sonar
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
 
   docker-build:
     needs: sonarqube
@@ -76,7 +101,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v4
         with:
           push: true
