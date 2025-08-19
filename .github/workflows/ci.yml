@@ -56,8 +56,8 @@ jobs:
         run: |
           mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.organization=innowise-internship \
-            -Dsonar.projectKey=Pavel11sg_authentication-service \  
-            -Dsonar.projectName=authentication-service \          
+            -Dsonar.projectKey=Pavel11sg_authentication-service \
+            -Dsonar.projectName=authentication-service \
             -Dsonar.java.source=21 \
             -Dsonar.sourceEncoding=UTF-8 \
             -Dsonar.java.binaries=target/classes \
