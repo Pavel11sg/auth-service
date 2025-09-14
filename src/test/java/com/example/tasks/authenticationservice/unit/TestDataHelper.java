@@ -6,6 +6,8 @@ import com.example.tasks.authenticationservice.dto.RefreshTokenRequestDto;
 import com.example.tasks.authenticationservice.dto.RefreshTokenResponseDto;
 import com.example.tasks.authenticationservice.dto.RegistrationRequestDto;
 import com.example.tasks.authenticationservice.dto.RegistrationResponseDto;
+import com.example.tasks.authenticationservice.model.Role;
+import com.example.tasks.authenticationservice.model.RoleName;
 import com.example.tasks.authenticationservice.model.UserCredentials;
 import com.example.tasks.authenticationservice.model.UserDetailsImpl;
 import io.jsonwebtoken.Claims;
@@ -15,17 +17,23 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import com.example.tasks.authenticationservice.model.Role;
+import com.example.tasks.authenticationservice.model.RoleName;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class TestDataHelper {
 	public static final UUID USER_ID = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
 	public static final String USERNAME = "testuser";
-	public static final String PASSWORD = "password123";
+	public static final String PASSWORD = "ValidPass1!";
 	public static final String EMAIL = "test@example.com";
 	public static final String ACCESS_TOKEN = "test-access-token";
 	public static final String REFRESH_TOKEN = "test-refresh-token";
@@ -40,7 +48,11 @@ public class TestDataHelper {
 	public static final int REFRESH_TOKEN_TTL_ADDITIONAL_SECONDS = 60;
 	public static final String BLACKLIST_TOKEN_VALUE = "revoked";
 	public static final Boolean STORAGE_TOKEN_VALUE = true;
-
+	public static final String INTERNAL_SECRET = "valid-secret";
+	public static final String NAME = "Test";
+	public static final String SURNAME = "User";
+	public static final LocalDate BIRTH_DATE = LocalDate.of(1990, 1, 1);
+	public static final Set<Role> USER_ROLES = createUserRoles();
 	static {
 		SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
 		VALID_TOKEN = Jwts.builder()
@@ -51,6 +63,14 @@ public class TestDataHelper {
 				.expiration(new Date(System.currentTimeMillis() + 3600000))
 				.signWith(key)
 				.compact();
+	}
+	private static Set<Role> createUserRoles() {
+		Set<Role> roles = new HashSet<>();
+		Role role = new Role();
+		role.setRoleId(UUID.randomUUID());
+		role.setName(RoleName.USER);
+		roles.add(role);
+		return roles;
 	}
 
 	public static LoginRequestDto createValidLoginRequest() {
@@ -65,6 +85,7 @@ public class TestDataHelper {
 				.userId(USER_ID)
 				.username(USERNAME)
 				.email(EMAIL)
+				.roles(USER_ROLES)
 				.build();
 		return new UserDetailsImpl(user);
 	}
@@ -82,6 +103,7 @@ public class TestDataHelper {
 				.userId(USER_ID)
 				.username(USERNAME)
 				.email(EMAIL)
+				.roles(USER_ROLES.stream().map(role -> role.getName().name()).collect(Collectors.toSet()))
 				.accessTokenExpiresIn(TOKEN_EXPIRATION_MS / 1000)
 				.build();
 	}
@@ -90,7 +112,8 @@ public class TestDataHelper {
 		return RegistrationRequestDto.builder()
 				.username(USERNAME)
 				.email(EMAIL)
-				.password("ValidPass1!")
+				.password(PASSWORD)
+
 				.build();
 	}
 
@@ -107,7 +130,8 @@ public class TestDataHelper {
 				.userId(USER_ID)
 				.username(USERNAME)
 				.email(EMAIL)
-				.password("ValidPass1!")
+				.password(PASSWORD)
+				.roles(USER_ROLES)
 				.build();
 	}
 
@@ -116,6 +140,7 @@ public class TestDataHelper {
 				.userId(USER_ID)
 				.username(USERNAME)
 				.email(EMAIL)
+				.roles(USER_ROLES)
 				.password("encodedPassword")
 				.createdAt(LocalDateTime.now())
 				.build();
@@ -128,6 +153,13 @@ public class TestDataHelper {
 				.email(EMAIL)
 				.createdAt(LocalDateTime.now())
 				.build();
+	}
+
+	public static Role createUserRole() {
+		Role role = new Role();
+		role.setRoleId(UUID.randomUUID());
+		role.setName(RoleName.USER);
+		return role;
 	}
 
 	public static String createExpiredToken() {

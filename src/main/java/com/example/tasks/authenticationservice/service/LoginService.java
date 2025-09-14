@@ -10,6 +10,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import java.util.stream.Collectors;
+
 @Service
 public class LoginService {
 	private final AuthenticationManager authenticationManager;
@@ -39,6 +41,7 @@ public class LoginService {
 				.userId(user.getUserId())
 				.username(user.getUsername())
 				.email(user.getEmail())
+				.roles(user.getRoles().stream().map(r->r.getName().name()).collect(Collectors.toSet()))
 				.accessTokenExpiresIn(jwtUtils.getAccessTokenExpirationMs() / 1000)
 				.build();
 	}

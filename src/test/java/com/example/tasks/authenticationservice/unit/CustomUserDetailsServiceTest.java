@@ -1,5 +1,7 @@
 package com.example.tasks.authenticationservice.unit;
 
+import com.example.tasks.authenticationservice.model.Role;
+import com.example.tasks.authenticationservice.model.RoleName;
 import com.example.tasks.authenticationservice.model.UserCredentials;
 import com.example.tasks.authenticationservice.model.UserDetailsImpl;
 import com.example.tasks.authenticationservice.repository.UserCredentialsRepository;
@@ -15,7 +17,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,6 +38,15 @@ class CustomUserDetailsServiceTest {
 	private final UUID testUserId = UUID.randomUUID();
 	private final LocalDateTime testTime = LocalDateTime.now();
 
+	private Set<Role> createUserRoles() {
+		Set<Role> roles = new HashSet<>();
+		Role role = new Role();
+		role.setRoleId(UUID.randomUUID());
+		role.setName(RoleName.USER);
+		roles.add(role);
+		return roles;
+	}
+
 	@Test
 	void loadUserByUsername_shouldReturnUserDetailsWithCorrectFields() {
 		// Arrange
@@ -47,11 +60,16 @@ class CustomUserDetailsServiceTest {
 				.accountNonLocked(true)
 				.lastPasswordChange(testTime)
 				.createdAt(testTime)
+				.roles(createUserRoles())
 				.build();
-		when(userCredentialsRepository.findByUsername(username))
+
+		// Mock the correct method - findByUsernameWithRoles
+		when(userCredentialsRepository.findByUsernameWithRoles(username))
 				.thenReturn(Optional.of(userCredentials));
+
 		// Act
 		UserDetails result = customUserDetailsService.loadUserByUsername(username);
+
 		// Assert
 		assertThat(result).isNotNull()
 				.isInstanceOf(UserDetailsImpl.class);
@@ -62,11 +80,13 @@ class CustomUserDetailsServiceTest {
 		assertThat(userDetails.isAccountNonLocked()).isTrue();
 		assertThat(userDetails.isAccountNonExpired()).isTrue();
 		assertThat(userDetails.isCredentialsNonExpired()).isTrue();
+
 		Collection<? extends GrantedAuthority> authorities = userDetails.getAuthorities();
 		assertThat(authorities)
 				.hasSize(1)
 				.extracting(GrantedAuthority::getAuthority)
 				.containsExactly("ROLE_USER");
+
 		assertThat(userDetails.getUserCredentials())
 				.isEqualTo(userCredentials);
 	}
@@ -75,8 +95,10 @@ class CustomUserDetailsServiceTest {
 	void loadUserByUsername_shouldThrowException_whenUserNotFound() {
 		// Arrange
 		String username = "nonExistingUser";
-		when(userCredentialsRepository.findByUsername(username))
+		// Mock the correct method - findByUsernameWithRoles
+		when(userCredentialsRepository.findByUsernameWithRoles(username))
 				.thenReturn(Optional.empty());
+
 		// Act & Assert
 		assertThatThrownBy(() -> customUserDetailsService.loadUserByUsername(username))
 				.isInstanceOf(UsernameNotFoundException.class)
@@ -94,11 +116,16 @@ class CustomUserDetailsServiceTest {
 				.email("disabled@example.com")
 				.enabled(false)
 				.accountNonLocked(true)
+				.roles(createUserRoles())
 				.build();
-		when(userCredentialsRepository.findByUsername(username))
+
+		// Mock the correct method - findByUsernameWithRoles
+		when(userCredentialsRepository.findByUsernameWithRoles(username))
 				.thenReturn(Optional.of(userCredentials));
+
 		// Act
 		UserDetails result = customUserDetailsService.loadUserByUsername(username);
+
 		// Assert
 		assertThat(result.isEnabled()).isFalse();
 	}
@@ -114,11 +141,16 @@ class CustomUserDetailsServiceTest {
 				.email("locked@example.com")
 				.enabled(true)
 				.accountNonLocked(false)
+				.roles(createUserRoles())
 				.build();
-		when(userCredentialsRepository.findByUsername(username))
+
+		// Mock the correct method - findByUsernameWithRoles
+		when(userCredentialsRepository.findByUsernameWithRoles(username))
 				.thenReturn(Optional.of(userCredentials));
+
 		// Act
 		UserDetails result = customUserDetailsService.loadUserByUsername(username);
+
 		// Assert
 		assertThat(result.isAccountNonLocked()).isFalse();
 	}

@@ -5,7 +5,6 @@ import com.example.tasks.authenticationservice.dto.LoginResponseDto;
 import com.example.tasks.authenticationservice.model.UserDetailsImpl;
 import com.example.tasks.authenticationservice.security.JwtUtils;
 import com.example.tasks.authenticationservice.service.LoginService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,19 +31,13 @@ class LoginServiceTest {
 	@InjectMocks
 	private LoginService loginService;
 
-	private TestDataHelper testData;
-
-	@BeforeEach
-	void setUp() {
-		testData = new TestDataHelper();
-	}
-
 	@Test
 	void login_WithValidCredentials_ReturnsCorrectLoginResponse() {
 		// Arrange
-		LoginRequestDto request = testData.createValidLoginRequest();
-		UserDetailsImpl userDetails = testData.createUserDetails();
-		Authentication authentication = testData.createAuthentication(userDetails);
+		LoginRequestDto request = TestDataHelper.createValidLoginRequest();
+		UserDetailsImpl userDetails = TestDataHelper.createUserDetails();
+		Authentication authentication = TestDataHelper.createAuthentication(userDetails);
+
 		when(authenticationManager.authenticate(any()))
 				.thenReturn(authentication);
 		when(jwtUtils.generateAccessToken(userDetails))
@@ -53,13 +46,15 @@ class LoginServiceTest {
 				.thenReturn(TestDataHelper.REFRESH_TOKEN);
 		when(jwtUtils.getAccessTokenExpirationMs())
 				.thenReturn(TestDataHelper.TOKEN_EXPIRATION_MS);
+
 		// Act
 		LoginResponseDto response = loginService.login(request);
+
 		// Assert
 		assertThat(response)
 				.usingRecursiveComparison()
 				.ignoringFields("accessTokenExpiresIn")
-				.isEqualTo(testData.createExpectedLoginResponse());
+				.isEqualTo(TestDataHelper.createExpectedLoginResponse());
 		assertThat(response.getAccessTokenExpiresIn())
 				.isEqualTo(TestDataHelper.TOKEN_EXPIRATION_MS / 1000);
 		verify(jwtUtils).saveRefreshToken(TestDataHelper.REFRESH_TOKEN);
@@ -68,9 +63,10 @@ class LoginServiceTest {
 	@Test
 	void login_ShouldCallAuthenticationManagerWithCorrectCredentials() {
 		// Arrange
-		LoginRequestDto request = testData.createValidLoginRequest();
-		UserDetailsImpl userDetails = testData.createUserDetails();
-		Authentication authentication = testData.createAuthentication(userDetails);
+		LoginRequestDto request = TestDataHelper.createValidLoginRequest();
+		UserDetailsImpl userDetails = TestDataHelper.createUserDetails();
+		Authentication authentication = TestDataHelper.createAuthentication(userDetails);
+
 		when(authenticationManager.authenticate(any()))
 				.thenReturn(authentication);
 		when(jwtUtils.generateAccessToken(any()))
@@ -79,8 +75,10 @@ class LoginServiceTest {
 				.thenReturn(TestDataHelper.REFRESH_TOKEN);
 		when(jwtUtils.getAccessTokenExpirationMs())
 				.thenReturn(TestDataHelper.TOKEN_EXPIRATION_MS);
+
 		// Act
 		loginService.login(request);
+
 		// Assert
 		verify(authenticationManager).authenticate(
 				argThat(token ->
@@ -92,9 +90,10 @@ class LoginServiceTest {
 	@Test
 	void login_ShouldGenerateTokensWithCorrectUserDetails() {
 		// Arrange
-		LoginRequestDto request = testData.createValidLoginRequest();
-		UserDetailsImpl userDetails = testData.createUserDetails();
-		Authentication authentication = testData.createAuthentication(userDetails);
+		LoginRequestDto request = TestDataHelper.createValidLoginRequest();
+		UserDetailsImpl userDetails = TestDataHelper.createUserDetails();
+		Authentication authentication = TestDataHelper.createAuthentication(userDetails);
+
 		when(authenticationManager.authenticate(any()))
 				.thenReturn(authentication);
 		when(jwtUtils.generateAccessToken(any()))
@@ -103,8 +102,10 @@ class LoginServiceTest {
 				.thenReturn(TestDataHelper.REFRESH_TOKEN);
 		when(jwtUtils.getAccessTokenExpirationMs())
 				.thenReturn(TestDataHelper.TOKEN_EXPIRATION_MS);
+
 		// Act
 		loginService.login(request);
+
 		// Assert
 		verify(jwtUtils).generateAccessToken(userDetails);
 		verify(jwtUtils).generateRefreshToken(userDetails);

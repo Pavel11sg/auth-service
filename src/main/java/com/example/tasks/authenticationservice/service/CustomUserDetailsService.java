@@ -16,7 +16,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 	}
 
 	public UserDetailsImpl loadUserByUsername(String username) throws UsernameNotFoundException {
-		UserCredentials user = userCredentialsRepository.findByUsername(username)
+		UserCredentials user = userCredentialsRepository.findByUsernameWithRoles(username)
 				.orElseThrow(() -> new UsernameNotFoundException("User not found"));
 		return new UserDetailsImpl(user);
 	}

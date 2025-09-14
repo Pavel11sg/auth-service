@@ -10,6 +10,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -17,7 +18,9 @@ import org.springframework.util.StringUtils;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -39,10 +42,15 @@ public class JwtUtils {
 	private long refreshTokenExpirationMs;
 
 	public String generateAccessToken(UserDetailsImpl userDetails) {
+		Collection<? extends GrantedAuthority> authorities = userDetails.getAuthorities();
+		List<String> roles = authorities.stream()
+				.map(GrantedAuthority::getAuthority)
+				.toList();
 		return Jwts.builder()
 				.id(UUID.randomUUID().toString())
 				.subject(userDetails.getUsername())
 				.claim("userId", userDetails.getUserCredentials().getUserId().toString())
+				.claim("roles", roles)
 				.issuedAt(Date.from(Instant.now()))
 				.expiration(Date.from(Instant.now().plusMillis(accessTokenExpirationMs)))
 				.signWith(getSigningKey(), Jwts.SIG.HS256)
@@ -139,7 +147,7 @@ public class JwtUtils {
 		return accessTokenExpirationMs;
 	}
 
-	private SecretKey getSigningKey() {
+	public SecretKey getSigningKey() {
 		return signingKey;
 	}
 
@@ -166,5 +174,14 @@ public class JwtUtils {
 				.parseSignedClaims(token)
 				.getPayload();
 		return UUID.fromString(claims.get("userId", String.class));
+	}
+
+	public List<String> getRolesFromToken(String token) {
+		Claims claims = Jwts.parser()
+				.verifyWith(getSigningKey())
+				.build()
+				.parseSignedClaims(token)
+				.getPayload();
+		return claims.get("roles", List.class);
 	}
 }

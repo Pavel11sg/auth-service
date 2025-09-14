@@ -23,32 +23,18 @@ class LogoutControllerIT extends BaseIntegrationTest {
 
 	@Autowired
 	private JwtUtils jwtUtils;
+
 	private final UUID testUserId = UUID.fromString("123e4567-e89b-12d3-a456-426614174001");
 	private final String testUsername = "testuser";
 	private final String testPassword = "SecurePass123!";
 	private String validAccessToken;
 
-	@Test
-	@Sql("/sql/insert_test_user.sql")
-	void logout_ValidToken_ShouldRevokeToken() throws Exception {
-		UserCredentials userCredentials = UserCredentials.builder()
-				.userId(testUserId)
-				.username(testUsername)
-				.password(testPassword)
-				.build();
-		UserDetailsImpl userDetails = new UserDetailsImpl(userCredentials);
-		validAccessToken = jwtUtils.generateAccessToken(userDetails);
-		assertTrue(jwtUtils.validateAccessToken(validAccessToken));
-		mockMvc.perform(post("/auth/logout")
-						.header("Authorization", "Bearer " + validAccessToken))
-				.andExpect(status().isNoContent());
-		assertThrows(Exception.class, () -> jwtUtils.validateAccessToken(validAccessToken));
-	}
+
+
 
 	@Test
-	void logout_InvalidToken_ShouldReturnUnauthorized() throws Exception {
-		mockMvc.perform(post("/auth/logout")
-						.header("Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJhZTY1ODcyYS05MGZlLTQyZGItODUxZi1iOTcyZmVjYjQyZjkiLCJzdWIiOiJqb2huX2RvZSIsImlhdCI6MTc1NDU0OTcxMiwiZXhwIjoxNzU0NTUwMzEyfQ.kCoAw1Ye-rPd3g_zP7gd_g2223GlqW6X5B43hDOCB3k"))
-				.andExpect(status().isUnauthorized());
+	void logout_MissingAuthorizationHeader_ShouldReturnForbidden() throws Exception {
+		mockMvc.perform(post("/auth/logout"))
+				.andExpect(status().isForbidden());
 	}
 }

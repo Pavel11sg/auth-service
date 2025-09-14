@@ -96,4 +96,17 @@ public class GlobalExceptionHandler {
 						request.getDescription(false)
 				));
 	}
+
+	@ExceptionHandler(PasswordNotStrongException.class)
+	public ResponseEntity<ErrorResponseDto> handleBusinessValidation(
+			PasswordNotStrongException ex, WebRequest request) {
+		return ResponseEntity
+				.status(HttpStatus.BAD_REQUEST)
+				.body(new ErrorResponseDto(
+						HttpStatus.BAD_REQUEST.value(),
+						"PASSWORD_VALIDATION_ERROR",
+						ex.getMessage(),
+						request.getDescription(false).replace("uri=", "")
+				));
+	}
 }

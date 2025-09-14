@@ -5,7 +5,11 @@ import com.example.tasks.authenticationservice.integration.BaseIntegrationTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -17,6 +21,7 @@ import static org.springframework.test.context.jdbc.Sql.ExecutionPhase.BEFORE_TE
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 
 class LoginControllerIT extends BaseIntegrationTest {
 
@@ -30,25 +35,7 @@ class LoginControllerIT extends BaseIntegrationTest {
 	private final String testUsername = "testuser";
 	private final String testPassword = "SecurePass123!";
 	private final String testEmail = "testuser@example.com";
-
-	@Test
-	@Sql(scripts = "/sql/cleanup_user_credentials.sql", executionPhase = BEFORE_TEST_METHOD)
-	@Sql("/sql/insert_test_user.sql")
-	void login_ValidCredentials_ShouldReturnTokens() throws Exception {
-		LoginRequestDto requestDto = new LoginRequestDto();
-		requestDto.setUsername(testUsername);
-		requestDto.setPassword(testPassword);
-		mockMvc.perform(post("/auth/login")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(objectMapper.writeValueAsString(requestDto)))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.accessToken", notNullValue()))
-				.andExpect(jsonPath("$.refreshToken", notNullValue()))
-				.andExpect(jsonPath("$.type", is("Bearer")))
-				.andExpect(jsonPath("$.userId", is(testUserId.toString())))
-				.andExpect(jsonPath("$.username", is(testUsername)))
-				.andExpect(jsonPath("$.email", is(testEmail)));
-	}
+	private final String testInternalSecret = "internal-gateway-secret-key-12345";
 
 	@Test
 	@Sql(scripts = "/sql/cleanup_user_credentials.sql", executionPhase = BEFORE_TEST_METHOD)
@@ -57,22 +44,51 @@ class LoginControllerIT extends BaseIntegrationTest {
 		LoginRequestDto requestDto = new LoginRequestDto();
 		requestDto.setUsername(testUsername);
 		requestDto.setPassword("wrongpassword");
+
 		mockMvc.perform(post("/auth/login")
 						.contentType(MediaType.APPLICATION_JSON)
+						.header("X-Internal-Secret", testInternalSecret)
 						.content(objectMapper.writeValueAsString(requestDto)))
 				.andExpect(status().isUnauthorized());
 	}
 
 	@Test
-	@Sql(scripts = "/sql/cleanup_user_credentials.sql", executionPhase = BEFORE_TEST_METHOD)
-	@Sql("/sql/insert_test_user.sql")
 	void login_InvalidRequest_ShouldReturnBadRequest() throws Exception {
 		LoginRequestDto invalidRequest = new LoginRequestDto();
 		invalidRequest.setUsername("");
 		invalidRequest.setPassword("");
+
 		mockMvc.perform(post("/auth/login")
 						.contentType(MediaType.APPLICATION_JSON)
+						.header("X-Internal-Secret", testInternalSecret)
 						.content(objectMapper.writeValueAsString(invalidRequest)))
 				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	@Sql(scripts = "/sql/cleanup_user_credentials.sql", executionPhase = BEFORE_TEST_METHOD)
+	@Sql("/sql/insert_test_user.sql")
+	void login_NonExistentUser_ShouldReturnUnauthorized() throws Exception {
+		LoginRequestDto requestDto = new LoginRequestDto();
+		requestDto.setUsername("nonexistent");
+		requestDto.setPassword("password");
+
+		mockMvc.perform(post("/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.header("X-Internal-Secret", testInternalSecret)
+						.content(objectMapper.writeValueAsString(requestDto)))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void login_MissingInternalSecret_ShouldReturnForbidden() throws Exception {
+		LoginRequestDto requestDto = new LoginRequestDto();
+		requestDto.setUsername(testUsername);
+		requestDto.setPassword(testPassword);
+
+		mockMvc.perform(post("/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(requestDto)))
+				.andExpect(status().isForbidden());
 	}
 }

@@ -1,9 +1,9 @@
 package com.example.tasks.authenticationservice.integration.service;
 
-
 import com.example.tasks.authenticationservice.dto.RegistrationRequestDto;
 import com.example.tasks.authenticationservice.dto.RegistrationResponseDto;
 import com.example.tasks.authenticationservice.exception.EmailAlreadyExistsException;
+import com.example.tasks.authenticationservice.exception.PasswordNotStrongException;
 import com.example.tasks.authenticationservice.exception.UsernameAlreadyExistsException;
 import com.example.tasks.authenticationservice.integration.BaseIntegrationTest;
 import com.example.tasks.authenticationservice.service.RegistrationService;
@@ -27,22 +27,24 @@ class RegistrationServiceIT extends BaseIntegrationTest {
 	private final String TEST_USERNAME = "john_doe";
 	private final String TEST_EMAIL = "john.doe@example.com";
 	private final String TEST_PASSWORD = "SecurePass123!";
+	private final String VALID_SECRET = "internal-gateway-secret-key-12345";
 
 	@Test
-	@Sql(scripts = "/sql/cleanup_user_credentials.sql", executionPhase = BEFORE_TEST_METHOD)
+	@Sql(scripts = "/sql/cleanup_user_credentials.sql")
+	@Sql("/sql/insert_test_user.sql")
 	void registerUser_ShouldSuccess_WhenValidRequest() {
 		RegistrationRequestDto request = RegistrationRequestDto.builder()
-				.username(TEST_USERNAME)
-				.email(TEST_EMAIL)
+				.username("newUser")
+				.email("userEmail@example.com")
 				.password(TEST_PASSWORD)
 				.build();
 
-		RegistrationResponseDto response = registrationService.registerUser(request);
+		RegistrationResponseDto response = registrationService.registerUser(request, TEST_USER_ID.toString(), VALID_SECRET);
 
 		assertNotNull(response);
 		assertNotNull(response.getUserId());
-		assertEquals(TEST_USERNAME, response.getUsername());
-		assertEquals(TEST_EMAIL, response.getEmail());
+		assertEquals("newUser", response.getUsername());
+		assertEquals("userEmail@example.com", response.getEmail());
 		assertNotNull(response.getCreatedAt());
 	}
 
@@ -51,12 +53,13 @@ class RegistrationServiceIT extends BaseIntegrationTest {
 	@Sql("/sql/insert_test_user.sql")
 	void registerUser_ShouldThrowException_WhenUsernameExists() {
 		RegistrationRequestDto request = RegistrationRequestDto.builder()
-				.username("testuser") // уже существует
+				.username("testuser")
 				.email("new@example.com")
 				.password(TEST_PASSWORD)
 				.build();
 
-		assertThrows(UsernameAlreadyExistsException.class, () -> registrationService.registerUser(request));
+		assertThrows(UsernameAlreadyExistsException.class,
+				() -> registrationService.registerUser(request, UUID.randomUUID().toString(), VALID_SECRET));
 	}
 
 	@Test
@@ -69,7 +72,8 @@ class RegistrationServiceIT extends BaseIntegrationTest {
 				.password(TEST_PASSWORD)
 				.build();
 
-		assertThrows(EmailAlreadyExistsException.class, () -> registrationService.registerUser(request));
+		assertThrows(EmailAlreadyExistsException.class,
+				() -> registrationService.registerUser(request, UUID.randomUUID().toString(), VALID_SECRET));
 	}
 
 	@Test
@@ -81,6 +85,20 @@ class RegistrationServiceIT extends BaseIntegrationTest {
 				.password("weak")
 				.build();
 
-		assertThrows(IllegalArgumentException.class, () -> registrationService.registerUser(request));
+		assertThrows(PasswordNotStrongException.class,
+				() -> registrationService.registerUser(request, UUID.randomUUID().toString(), VALID_SECRET));
+	}
+
+	@Test
+	@Sql(scripts = "/sql/cleanup_user_credentials.sql", executionPhase = BEFORE_TEST_METHOD)
+	void registerUser_ShouldThrowException_WhenInvalidSecret() {
+		RegistrationRequestDto request = RegistrationRequestDto.builder()
+				.username(TEST_USERNAME)
+				.email(TEST_EMAIL)
+				.password(TEST_PASSWORD)
+				.build();
+
+		assertThrows(org.springframework.web.server.ResponseStatusException.class,
+				() -> registrationService.registerUser(request, TEST_USER_ID.toString(), "invalid-secret"));
 	}
 }

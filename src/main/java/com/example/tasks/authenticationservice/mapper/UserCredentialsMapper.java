@@ -6,6 +6,7 @@ import com.example.tasks.authenticationservice.model.UserCredentials;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.stream.Collectors;
 
 @Component
 public class UserCredentialsMapper {
@@ -26,6 +27,7 @@ public class UserCredentialsMapper {
 				.userId(entity.getUserId())
 				.username(entity.getUsername())
 				.email(entity.getEmail())
+				.roles(entity.getRoles().stream().map(r -> r.getName().name()).collect(Collectors.toSet()))
 				.createdAt(entity.getCreatedAt())
 				.build();
 	}

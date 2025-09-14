@@ -30,7 +30,7 @@ class UserCredentialsRepositoryIT extends BaseIntegrationTest {
 	@Sql(scripts = "/sql/cleanup_user_credentials.sql", executionPhase = BEFORE_TEST_METHOD)
 	@Sql("/sql/insert_test_user.sql")
 	void findByUsername_ShouldReturnUser_WhenUserExists() {
-		Optional<UserCredentials> result = repository.findByUsername(TEST_USERNAME);
+		Optional<UserCredentials> result = repository.findByUsernameWithRoles(TEST_USERNAME);
 		assertTrue(result.isPresent());
 		assertEquals(TEST_USER_ID, result.get().getUserId());
 		assertEquals(TEST_EMAIL, result.get().getEmail());
@@ -38,7 +38,7 @@ class UserCredentialsRepositoryIT extends BaseIntegrationTest {
 
 	@Test
 	void findByUsername_ShouldReturnEmpty_WhenUserNotExists() {
-		Optional<UserCredentials> result = repository.findByUsername("nonexistent");
+		Optional<UserCredentials> result = repository.findByUsernameWithRoles("nonexistent");
 		assertTrue(result.isEmpty());
 	}
 

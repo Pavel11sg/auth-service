@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Set;
 import java.util.UUID;
 
 @Getter
@@ -17,4 +18,5 @@ public class LoginResponseDto {
 	private String username;
 	private String email;
 	private Long accessTokenExpiresIn;
+	private Set<String> roles;
 }
